@@ -1,0 +1,12 @@
+{
+  "theme": "auto",
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Bash(apt-get:*)",
+      "Bash(apt:*)",
+      "Bash(dpkg:*)",
+      "Bash(add-apt-repository:*)"
+    ]
+  }
+}

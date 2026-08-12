@@ -1,0 +1,6 @@
+# Reviews what the coder did: the coder's own report and the diff.
+order: 30
+harness: claude
+cmd: claude --model claude-sonnet-5 
+inputs: [coder.result.md]
+outputs: [reviewer.result.md]

@@ -1,0 +1,5 @@
+# Turns the task into a plan. Runs before coder, reads nothing.
+order: 10               # where the role sits in the listings
+harness: claude
+cmd: claude --model claude-opus-5
+outputs: [task.md, plan.md] # both must be there for the run to count

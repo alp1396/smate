@@ -1,0 +1,13 @@
+# build output
+/bin/
+.smate.yml
+
+# local-only working material
+dev-doc
+
+# test and coverage artifacts
+*.test
+*.out
+
+# macOS noise
+.DS_Store

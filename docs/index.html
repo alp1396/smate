@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMate — safe AI agent orchestration workflow</title>
+<meta name="description" content="An isolated Docker sandbox for development tasks: a snapshot goes in, only a validated patch series comes out.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0912;
+    --bg-2:#0f0d1b;
+    --card:rgba(255,255,255,.035);
+    --card-2:rgba(255,255,255,.055);
+    --line:rgba(255,255,255,.09);
+    --line-soft:rgba(255,255,255,.055);
+    --ink:#eceaf5;
+    --dim:#9a94b3;
+    --dimmer:#6f6a86;
+
+    --coin:#ffc93c;
+    --mario:#ff5347;
+    --luigi:#4ade80;
+    --sky:#5cc8ff;
+
+    --pixel:"Press Start 2P",ui-monospace,monospace;
+    --sans:"Space Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:17px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* one soft light source, top-left — keeps the dark from going flat */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(900px 520px at 12% -8%, rgba(255,201,60,.10), transparent 60%),
+      radial-gradient(760px 480px at 88% 4%, rgba(92,200,255,.09), transparent 62%);
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+  img{max-width:100%;display:block}
+  a{color:var(--ink);text-decoration:none}
+  code{font-family:var(--mono);font-size:.9em;color:var(--coin);background:rgba(255,201,60,.08);padding:.1em .38em;border-radius:5px}
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:20;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:rgba(10,9,18,.72);border-bottom:1px solid var(--line-soft);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .mark{font-family:var(--pixel);font-size:13px;letter-spacing:.02em;color:var(--ink)}
+  .mark span{color:var(--coin)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:15px;color:var(--dim)}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-links .gh{
+    padding:7px 15px;border:1px solid var(--line);border-radius:9px;color:var(--ink);
+    background:var(--card);transition:border-color .15s,background .15s;
+  }
+  .nav-links .gh:hover{border-color:rgba(255,201,60,.5);background:rgba(255,201,60,.08)}
+  @media (max-width:640px){ .nav-links a:not(.gh){display:none} }
+
+  /* ---------- shared ---------- */
+  section{padding:96px 0;position:relative}
+  section+section{border-top:1px solid var(--line-soft)}
+  .eyebrow{
+    font-family:var(--pixel);font-size:10px;letter-spacing:.12em;
+    color:var(--coin);text-transform:uppercase;margin:0 0 18px;
+  }
+  h2{
+    font-size:clamp(28px,4vw,40px);line-height:1.12;letter-spacing:-.02em;
+    font-weight:600;margin:0 0 14px;
+  }
+  .lede{color:var(--dim);margin:0 0 44px;max-width:62ch;font-size:18px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;
+  }
+
+  /* ---------- hero ---------- */
+  .hero{padding:104px 0 88px;text-align:center}
+  .badge{
+    display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--mono);font-size:13px;color:var(--dim);
+    border:1px solid var(--line);background:var(--card);
+    padding:6px 14px;border-radius:999px;margin-bottom:34px;
+  }
+  .badge i{width:6px;height:6px;border-radius:50%;background:var(--luigi);box-shadow:0 0 10px var(--luigi);font-style:normal}
+  .logo{
+    font-family:var(--pixel);
+    font-size:clamp(34px,7.2vw,64px);
+    line-height:1.12;letter-spacing:.01em;margin:0;
+    background:linear-gradient(180deg,#fff 12%,#ffc93c 96%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 44px rgba(255,201,60,.22);
+  }
+  .slogan{
+    font-family:var(--mono);font-size:14px;letter-spacing:.02em;
+    color:var(--coin);margin:22px 0 0;
+  }
+  .slogan::before,.slogan::after{content:"—";color:var(--dimmer);margin:0 10px}
+  .tagline{
+    font-size:clamp(18px,2.2vw,21px);color:var(--dim);
+    max-width:64ch;margin:26px auto 0;line-height:1.55;
+  }
+  .tagline b{color:var(--ink);font-weight:600}
+  .cta{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:38px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:13px 26px;border-radius:11px;font-weight:600;font-size:16px;
+    border:1px solid transparent;transition:transform .12s,box-shadow .15s,background .15s;
+  }
+  .btn.primary{
+    background:linear-gradient(180deg,#ffd45e,#f5b400);color:#241a00;
+    box-shadow:0 10px 30px -10px rgba(255,201,60,.55);
+  }
+  .btn.primary:hover{transform:translateY(-2px);box-shadow:0 16px 38px -12px rgba(255,201,60,.7)}
+  .btn.ghost{background:var(--card);border-color:var(--line);color:var(--ink)}
+  .btn.ghost:hover{background:var(--card-2);border-color:rgba(255,255,255,.2);transform:translateY(-2px)}
+  .req{font-family:var(--mono);font-size:13px;color:var(--dimmer);margin-top:24px}
+  .req b{color:var(--dim);font-weight:500}
+
+  /* ---------- screenshot frames ---------- */
+  .frame{
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    background:#141320;box-shadow:0 40px 90px -40px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.02);
+  }
+  .frame .bar{
+    display:flex;align-items:center;gap:7px;padding:11px 14px;
+    background:rgba(255,255,255,.035);border-bottom:1px solid var(--line-soft);
+  }
+  .frame .bar i{width:10px;height:10px;border-radius:50%;background:#3a3750;font-style:normal}
+  .frame .bar i:nth-child(1){background:#ff5f57}
+  .frame .bar i:nth-child(2){background:#febc2e}
+  .frame .bar i:nth-child(3){background:#28c840}
+  .frame .bar span{
+    margin-left:8px;font-family:var(--mono);font-size:12px;color:var(--dimmer);
+  }
+  .frame img{width:100%}
+  .hero-shot{margin-top:62px;position:relative}
+  .hero-shot::after{
+    content:"";position:absolute;inset:auto 6% -30px 6%;height:60px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(255,201,60,.16),transparent);filter:blur(14px);z-index:-1;
+  }
+  .cap{color:var(--dimmer);font-size:14px;margin:16px 2px 0;text-align:center}
+
+  /* ---------- pipeline ---------- */
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:34px}
+  .chip{
+    flex:1 1 160px;padding:14px 16px;border-radius:12px;
+    background:var(--card);border:1px solid var(--line);
+    font-family:var(--mono);font-size:13.5px;color:var(--ink);
+  }
+  .chip small{
+    display:block;font-family:var(--sans);font-size:10px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;
+  }
+  .chip.host small{color:var(--sky)}
+  .chip.box small{color:var(--mario)}
+  .chip.host{box-shadow:inset 3px 0 0 var(--sky)}
+  .chip.box{box-shadow:inset 3px 0 0 var(--mario)}
+  .flow em{color:var(--dimmer);font-style:normal;font-size:15px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .card h3{
+    font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    margin:0 0 12px;display:flex;align-items:center;gap:9px;
+  }
+  .card h3 i{width:8px;height:8px;border-radius:2px;font-style:normal}
+  .card p{margin:0;color:var(--dim);font-size:16px}
+
+  /* ---------- pillars + the honest warning ---------- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:22px}
+  .pillar{
+    padding:24px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(255,201,60,.055),rgba(255,255,255,.02));
+    border:1px solid rgba(255,201,60,.16);
+  }
+  .pillar .ico{
+    width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    background:rgba(255,201,60,.13);color:var(--coin);font-size:16px;margin-bottom:14px;
+  }
+  .pillar h3{
+    font-family:var(--sans);font-size:17px;font-weight:600;letter-spacing:-.01em;
+    text-transform:none;margin:0 0 8px;display:block;
+  }
+  .pillar p{margin:0;color:var(--dim);font-size:15.5px;line-height:1.55}
+  @media (max-width:880px){ .pillars{grid-template-columns:1fr} }
+
+  .warning{
+    display:flex;gap:18px;align-items:flex-start;margin-top:22px;padding:24px 26px;
+    border-radius:16px;background:rgba(255,83,71,.07);
+    border:1px solid rgba(255,83,71,.28);
+    box-shadow:inset 4px 0 0 var(--mario);
+  }
+  .warning .sign-ico{
+    flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+    background:rgba(255,83,71,.16);color:var(--mario);font-size:19px;font-weight:700;
+  }
+  .warning h3{
+    font-family:var(--pixel);font-size:11px;letter-spacing:.1em;color:var(--mario);
+    text-transform:uppercase;margin:4px 0 12px;display:block;
+  }
+  .warning p{margin:0 0 10px;color:#d9cfd6;font-size:16px;line-height:1.6}
+  .warning p:last-child{margin-bottom:0;color:var(--dim)}
+  .warning b{color:#fff;font-weight:600}
+
+  /* ---------- tabs ---------- */
+  .tabs{
+    display:inline-flex;flex-wrap:wrap;gap:4px;padding:5px;margin-bottom:26px;
+    background:var(--card);border:1px solid var(--line);border-radius:13px;
+  }
+  .tab{
+    font-family:var(--sans);font-size:14.5px;font-weight:500;
+    padding:9px 18px;border:0;border-radius:9px;cursor:pointer;
+    background:transparent;color:var(--dim);transition:color .15s,background .15s;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected="true"]{background:rgba(255,201,60,.14);color:var(--coin);font-weight:600}
+  .pane{display:none;grid-template-columns:minmax(0,1fr) 340px;gap:36px;align-items:start}
+  .pane[data-active]{display:grid}
+  .pane .text p{margin:0;color:var(--dim);font-size:17px}
+  .pane .text b{color:var(--ink);font-weight:600}
+  .pane .text h3{font-size:19px;font-weight:600;margin:0 0 12px;letter-spacing:-.01em}
+  @media (max-width:880px){ .pane[data-active]{grid-template-columns:1fr} .pane .text{order:2} }
+
+  /* ---------- code ---------- */
+  pre{
+    margin:0;padding:20px 22px;overflow-x:auto;border-radius:13px;
+    background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));
+    border:1px solid var(--line);
+    font-family:var(--mono);font-size:14px;line-height:1.85;color:var(--ink);
+  }
+  pre .c{color:var(--dimmer)}
+  pre .p{color:var(--luigi);user-select:none}
+  .stack{display:flex;flex-direction:column;gap:14px}
+  .or{display:flex;align-items:center;gap:14px;margin:2px 0}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .or span{
+    font-family:var(--pixel);font-size:9px;letter-spacing:.14em;color:var(--coin);
+    text-transform:uppercase;
+  }
+
+  /* ---------- boundary ---------- */
+  ul.checks{list-style:none;margin:0;padding:0}
+  ul.checks li{
+    display:flex;gap:14px;align-items:flex-start;
+    padding:15px 0;border-bottom:1px solid var(--line-soft);color:var(--dim);font-size:16.5px;
+  }
+  ul.checks li:first-child{padding-top:0}
+  ul.checks li:last-child{border-bottom:0;padding-bottom:0}
+  ul.checks li::before{
+    content:"✕";flex:none;width:24px;height:24px;margin-top:2px;border-radius:7px;
+    display:grid;place-items:center;font-size:12px;font-weight:700;
+    background:rgba(255,83,71,.13);color:var(--mario);
+  }
+  ul.checks li.warn::before{content:"!";background:rgba(255,201,60,.14);color:var(--coin)}
+  .note{color:var(--dimmer);font-size:15.5px;margin-top:28px;max-width:70ch}
+  .note a{color:var(--sky);border-bottom:1px solid rgba(92,200,255,.35)}
+  .note a:hover{border-bottom-color:var(--sky)}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line-soft);padding:44px 0 64px}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between}
+  footer .links{display:flex;flex-wrap:wrap;gap:24px;font-size:15px;color:var(--dim)}
+  footer .links a:hover{color:var(--coin)}
+  footer .sign{font-family:var(--mono);font-size:13px;color:var(--dimmer)}
+
+  @media (max-width:760px){
+    section{padding:70px 0}
+    .two{grid-template-columns:1fr}
+    .flow em{display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="mark" href="#top">S<span>M</span>ate</a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#screens">Screens</a>
+      <a href="#start">Quick start</a>
+      <a href="#boundary">Boundary</a>
+      <a class="gh" href="https://github.com/alp1396/smate">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ 1. HERO ============ -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="badge"><i></i>v0.4.0 · Go · macOS &amp; Linux</div>
+    <h1 class="logo">SMate</h1>
+    <p class="slogan">From developers to developers :)</p>
+    <p class="tagline">
+      An isolated sandbox for development tasks. A person, or their agent, works inside a
+      Docker container, and the only thing that leaves it is a <b>validated patch series</b> —
+      no access to the working <code>.git</code>, its history, remotes or your keys.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#start">Get started</a>
+      <a class="btn ghost" href="https://github.com/alp1396/smate">View source</a>
+    </div>
+    <p class="req"><b>Requirements:</b> Go 1.24+ · git · a running Docker</p>
+
+    <div class="frame hero-shot">
+      <div class="bar"><i></i><i></i><i></i><span>smate</span></div>
+      <img src="01-smate-main-app-view.jpg" alt="The smate task list: ids, statuses, branches, runs and results" width="930" height="430">
+    </div>
+    <p class="cap">Bare <code>smate</code> — every task, its status, its run, and whether a result was actually written.</p>
+  </div>
+</header>
+
+<!-- ============ 2. HOW IT WORKS ============ -->
+<section id="how">
+  <div class="wrap">
+    <p class="eyebrow">The loop</p>
+    <h2>One shape, every time</h2>
+    <p class="lede">What goes in is a flat snapshot of tracked files. What comes back is a patch
+    series, checked on the host before anything lands.</p>
+
+    <div class="flow">
+      <div class="chip host"><small>Host</small>git archive HEAD</div>
+      <em>→</em>
+      <div class="chip box"><small>Sandbox</small>/workspace in smate-&lt;id&gt;</div>
+      <em>→</em>
+      <div class="chip box"><small>Sandbox</small>work · commit locally</div>
+      <em>→</em>
+      <div class="chip host"><small>Host</small>format-patch · validate</div>
+      <em>→</em>
+      <div class="chip host"><small>Host</small>git am → branch &lt;id&gt;</div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3><i style="background:var(--sky)"></i>The way in</h3>
+        <p>A <code>git archive</code> of an exact commit — tracked files and nothing else. Paths
+        listed under <code>secrets</code> are cut before the container starts, so they never reach
+        it at all. Inside lives a throwaway git with a single <code>baseline</code> commit: no
+        remote, no credentials, no history to mine.</p>
+      </div>
+      <div class="card">
+        <h3><i style="background:var(--mario)"></i>The way out</h3>
+        <p>A patch series diffed against that baseline, and nothing else — there is no third
+        channel. It is parsed on the host as untrusted input and applied to a branch named after
+        the task, starting at the commit the snapshot was taken from.</p>
+      </div>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar">
+        <div class="ico">▣</div>
+        <h3>The AI lives in Docker only</h3>
+        <p>Every agent CLI runs inside a disposable container and nowhere else. It never runs as a
+        process on your machine, and the container is thrown away when the task is done.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico">⇄</div>
+        <h3>Strictly deterministic exchange</h3>
+        <p>Two openings, both fixed: a snapshot in, a patch series out. Not a protocol the agent can
+        negotiate — the host decides what enters and validates everything that leaves.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico">⌾</div>
+        <h3>No reach into your host data</h3>
+        <p>No working <code>.git</code>, no history, no remotes, no SSH or cloud credentials, no
+        files outside the snapshot — only what you mounted on purpose.</p>
+      </div>
+    </div>
+
+    <div class="warning">
+      <div class="sign-ico">!</div>
+      <div>
+        <h3>The honest part</h3>
+        <p>Docker isolation cannot stop an AI from <b>trying</b> to break out of it — least of all
+        if you explicitly ask it to. The container has full capabilities, a writable root
+        filesystem and open outbound network; a determined escape is a matter of the kernel and the
+        runtime, not of this tool.</p>
+        <p>Full isolation of your data is something you get by working on a remote machine, where
+        there is nothing of yours to reach in the first place. Such is the cruel truth of the
+        current state of affairs :)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. SCREENS ============ -->
+<section id="screens">
+  <div class="wrap">
+    <p class="eyebrow">The interface</p>
+    <h2>Five views of the same work</h2>
+    <p class="lede">A single terminal UI over the whole loop — no dashboard, no daemon, no browser.</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-list"  aria-controls="pane-list"  aria-selected="true">Tasks list</button>
+      <button class="tab" role="tab" id="tab-tasks" aria-controls="pane-tasks" aria-selected="false">Task actions</button>
+      <button class="tab" role="tab" id="tab-roles" aria-controls="pane-roles" aria-selected="false">Roles</button>
+      <button class="tab" role="tab" id="tab-logs"  aria-controls="pane-logs"  aria-selected="false">Realtime logs</button>
+      <button class="tab" role="tab" id="tab-art"   aria-controls="pane-art"   aria-selected="false">Artefacts and diffs</button>
+    </div>
+
+    <div class="pane" id="pane-list" role="tabpanel" aria-labelledby="tab-list" data-active>
+      <div class="frame">
+        <div class="bar"><i></i><i></i><i></i><span>smate</span></div>
+        <img src="01-smate-main-app-view.jpg" alt="The smate task list: ids, statuses, branches, runs and results" loading="lazy">
+      </div>
+      <div class="text">
+        <h3>The tasks list, monitored in realtime</h3>
+        <p>Every task with its status, the branch it came from, the role running right now and the
+        artefact it has produced — so <b>the whole AI workflow is one screen</b>, computed fresh on
+        every open rather than from a daemon's memory.</p>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-tasks" role="tabpanel" aria-labelledby="tab-tasks">
+      <div class="frame">
+        <div class="bar"><i></i><i></i><i></i><span>smate — task bug-193</span></div>
+        <img src="02-smate-open-task.jpg" alt="The actions tab of a task: apply, shell, harnesses, roles and clean" loading="lazy">
+      </div>
+      <div class="text">
+        <h3>Everything a task can do, on one screen</h3>
+        <p>Apply the work, drop into a shell, open a harness by hand, start a role, clean up —
+        with <b>apply, clean and stop asking first</b>, since they are the three that cannot be
+        taken back.</p>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-roles" role="tabpanel" aria-labelledby="tab-roles">
+      <div class="frame">
+        <div class="bar"><i></i><i></i><i></i><span>smate — role coder</span></div>
+        <img src="03-smate-open-roles.jpg" alt="A role screen: connect, run, run with message, attach and stop" loading="lazy">
+      </div>
+      <div class="text">
+        <h3>A role is a described performer</h3>
+        <p>Which harness runs it, with what command, which artefacts it needs and which one it
+        must leave behind — so <b>a run refuses to start on a missing input</b> instead of
+        inventing one.</p>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-logs" role="tabpanel" aria-labelledby="tab-logs">
+      <div class="frame">
+        <div class="bar"><i></i><i></i><i></i><span>smate — logs</span></div>
+        <img src="04-smate-logs.jpg" alt="The logs tab streaming a live agent run" loading="lazy">
+      </div>
+      <div class="text">
+        <h3>The run outlives your terminal</h3>
+        <p>It lives in a tmux session inside the container: watch its screen as it prints, then
+        <b>attach to answer a question and detach again</b> without killing it.</p>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-art" role="tabpanel" aria-labelledby="tab-art">
+      <div class="frame">
+        <div class="bar"><i></i><i></i><i></i><span>smate — artefacts</span></div>
+        <img src="05-smate-artefacts.jpg" alt="The artefacts tab showing a coder result report" loading="lazy">
+      </div>
+      <div class="text">
+        <h3>Roles hand work to each other in files</h3>
+        <p>The request, the note for the run, the reports left behind — all in <code>.smate/</code>,
+        which never reaches a commit. The diff tab shows <b>what the sandbox actually changed</b>,
+        before any of it goes near your repository.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. QUICK START ============ -->
+<section id="start">
+  <div class="wrap">
+    <p class="eyebrow">Quick start</p>
+    <h2>Install once, run from your repo</h2>
+    <p class="lede">Two commands to set up, four to go around the loop.</p>
+
+    <div class="two">
+      <div class="stack">
+        <pre><span class="c"># install, then build an environment image</span>
+<span class="p">$</span> make install
+<span class="p">$</span> smate build base
+<span class="p">$</span> smate build php</pre>
+        <p class="cap" style="text-align:left;margin:0">Images live in
+        <code>~/.smate/images/&lt;name&gt;/Dockerfile</code> and are yours to edit — <code>base</code>,
+        <code>php</code>, <code>node</code> and <code>go</code> ship with the binary.</p>
+      </div>
+      <div class="stack">
+        <pre><span class="c"># a typical round, by hand</span>
+<span class="p">$</span> smate start 123   <span class="c"># snapshot → container</span>
+<span class="p">$</span> smate shell       <span class="c"># work inside it</span>
+<span class="p">$</span> smate apply       <span class="c"># → branch 123</span>
+<span class="p">$</span> smate clean       <span class="c"># drop it all</span></pre>
+
+        <div class="or"><span>or</span></div>
+
+        <pre><span class="p">$</span> smate</pre>
+        <p class="cap" style="text-align:left;margin:0">Just run <code>smate</code> — the same round,
+        and every role with it, is a few keypresses away in the control panel — including
+        <code>run</code>, <code>attach</code> and <code>logs</code> for an agent.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. THE BOUNDARY ============ -->
+<section id="boundary">
+  <div class="wrap">
+    <p class="eyebrow">The boundary</p>
+    <h2>What is checked before an import</h2>
+    <p class="lede">Isolation is the container and the shape of the exchange, not the agent's good
+    behaviour. Everything coming out is untrusted input — the whole series is refused if it:</p>
+
+    <div class="card">
+      <ul class="checks">
+        <li>escapes the repository root</li>
+        <li>touches anything inside <code>.git/</code> or <code>.smate/</code></li>
+        <li>contains a symlink</li>
+        <li>covers a path listed under <code>secrets</code></li>
+        <li>carries the literal value of one of your configured keys</li>
+        <li>lands on a working copy that is not clean, or a branch smate did not create</li>
+        <li class="warn">an added <code>+x</code> bit is reported as a warning, not a refusal</li>
+      </ul>
+    </div>
+
+    <p class="note">A refused import puts you back where you were and marks the task
+    <code>REJECTED</code> — go into <code>shell</code>, fix it, apply again. Nothing is lost: every
+    commit smate imported can be produced from the sandbox a second time. The
+    <a href="https://github.com/alp1396/smate#limitations">limitations</a> are written down just as
+    plainly — the key scan catches the accident, not the intent.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/alp1396/smate">GitHub</a>
+      <a href="https://github.com/alp1396/smate#readme">Documentation</a>
+      <a href="https://github.com/alp1396/smate/blob/main/LICENSE">License</a>
+    </div>
+    <p class="sign">From developers to developers :)</p>
+  </div>
+</footer>
+
+<script>
+  // Tabs: plain buttons, no state beyond the DOM.
+  var tabs = [].slice.call(document.querySelectorAll('.tab'));
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) {
+        var pane = document.getElementById(t.getAttribute('aria-controls'));
+        var on = t === tab;
+        t.setAttribute('aria-selected', on);
+        if (on) { pane.setAttribute('data-active', ''); } else { pane.removeAttribute('data-active'); }
+      });
+    });
+  });
+</script>
+</body>
+</html>
