@@ -1,4 +1,4 @@
-# SMATE - Go based sandbox for isolated AI agents
+# SMATE - Docker based sandbox for running AI agents isolated
 
 An isolated sandbox for development tasks. A person, or their agent, works
 inside a Docker container, and the only thing that leaves it is a validated
