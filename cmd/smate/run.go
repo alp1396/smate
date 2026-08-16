@@ -109,6 +109,9 @@ func runLine(r core.RunInfo) string {
 		line += fmt.Sprintf(", silent for %s — smate attach", r.Silent.Round(time.Second))
 	case core.StateFailed:
 		line += fmt.Sprintf(", exit %d", r.Exit)
+		if r.OutOfMemory() {
+			line += " — " + core.OOMHint
+		}
 	}
 	if r.HasResult {
 		line += ", result written"

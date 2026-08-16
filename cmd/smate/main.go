@@ -23,6 +23,7 @@ Usage (from the working repository):
   smate --help                     this list
 
   smate start <id> [--image IMG]   create the task sandbox
+  smate restart [<id>]             give the task a new container, keep its work
   smate shell [<id>]               enter the task container
   smate open-ide [<id>]            open the task workspace in your editor
   smate apply [<id>]               take the changes and import them
@@ -66,6 +67,8 @@ func run(args []string) error {
 		return nil
 	case "start":
 		return cmdStart(args[1:])
+	case "restart":
+		return cmdRestart(args[1:])
 	case "shell":
 		return cmdShell(args[1:])
 	case "open-ide":
@@ -169,6 +172,27 @@ func cmdStart(args []string) error {
 		return err
 	}
 	fmt.Printf("task %s: %s @ %.8s → container %s\n", t.ID, t.Branch, t.BaseSHA, t.Container())
+	fmt.Printf("enter with: smate shell %s\n", t.ID)
+	return nil
+}
+
+func cmdRestart(args []string) error {
+	id, _, err := parse(args, nil, nil)
+	if err != nil {
+		return err
+	}
+	s, err := store.New()
+	if err != nil {
+		return err
+	}
+	t, warnings, err := core.Restart(s, id)
+	for _, w := range warnings {
+		fmt.Fprintln(os.Stderr, "warning:", w)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Printf("task %s: new container %s over the workspace it had\n", t.ID, t.Container())
 	fmt.Printf("enter with: smate shell %s\n", t.ID)
 	return nil
 }
@@ -495,6 +519,9 @@ func cmdList() error {
 		if v.HasRun {
 			role = v.Run.Meta.Role
 			run = fmt.Sprintf("%d %s", v.Run.Meta.N, v.Run.State)
+			if v.Run.OutOfMemory() {
+				run += " (out of memory)"
+			}
 			if v.Run.HasResult {
 				result = strings.Join(v.Run.Meta.Outputs, " ")
 			}

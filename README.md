@@ -146,6 +146,7 @@ smate                           # the task screen — this is the usual way in
 smate --help                    # everything below, as a list
 
 smate start 123 [--image IMG]   # snapshot the current branch → container smate-123
+smate restart [<id>]            # a new container over the same workspace
 smate shell [<id>]              # enter the container and work
 smate open-ide [<id>]           # open the task's workspace in your editor
 smate apply [<id>]              # validate the changes and import them as branch <id>
@@ -162,6 +163,17 @@ inert while an input it declares is not in `.smate/` — the row names the artef
 it is waiting for instead of offering a keypress that ends in the same refusal. Apply, clean and
 stop ask before they act — they are the three that cannot be taken back. The
 other tabs (logs, diff, artefacts) are read-only views of the same task.
+
+`restart` exists because the container is the disposable half of a task and the
+workspace is not: `/workspace` is a directory on the host, so a container killed
+from outside, or one whose memory cap turned out too low, costs you the
+environment and nothing else. It gives the task a new container over the
+workspace it already has — the snapshot is not taken again, so committed and
+uncommitted work in the sandbox both survive. What it does re-read is the shape
+of the container: `limits`, harness environment and `mounts`, which is how a
+raised `limits.memory` reaches a task that was killed for hitting the old one.
+The image stays the one recorded at start. Runs do not survive: their processes
+died with the old container, and the previous one reads as `CUT OFF`.
 
 Without an `<id>` the commands act on the single active task. Several tasks can
 be in flight at once: each has its own container and snapshot, and each imports
@@ -303,7 +315,9 @@ smate stop 123                  # kill the run, leave the task alone
 
 A run lives in a tmux session inside the container, so it survives your leaving
 and takes you back: `attach` puts you at the agent's own terminal, where you can
-answer its question and detach without killing it.
+answer its question and detach without killing it. The session is started with
+tmux's mouse mode on, so the wheel scrolls back through what the agent printed
+(hold Shift to select text with the terminal's own selection instead).
 
 **Connect** — the first action on a role's screen in the task UI — is the same
 role with you in the room. It prepares exactly what a run prepares: the same
@@ -346,7 +360,7 @@ NOT RUN   the task has never started a role
 WORKING   the session is alive and printing
 SLEEP     alive but silent for over a minute, nobody attached — go and look
 CUT OFF   the session is gone without an exit code (OOM, kill, docker rm)
-FAILED    exited non-zero
+FAILED    exited non-zero — exit 137 is a kill, shown as "out of memory"
 FINISHED  exited zero — which does not mean it wrote anything
 ```
 
@@ -481,11 +495,14 @@ and a writable root filesystem, and its outbound network is docker's default —
 open. A harness needs to reach its provider, and telling that traffic from
 everything else needs an allowlist and a proxy, which is not built.
 
-Containers are capped at 1 CPU, 512 MB and 512 processes (`limits` in
-`~/.smate/config.yml`). 512 MB is tight for a dependency build: it ends as
-`CUT OFF`, killed by the kernel, which is worth remembering before looking for a
-bug. Disk is not capped — that needs a storage driver with quota support — so
-space is freed only by `clean`.
+Containers are capped at 1 CPU, 2 GB and 512 processes (`limits` in
+`~/.smate/config.yml`). 2 GB is room for an agent CLI and an ordinary build, not
+for both at their greediest: past the cap the kernel kills the fattest process in
+the cgroup, the log ends on a bare `Killed`, and the run comes out as `FAILED`
+with exit 137 — which smate labels "out of memory" rather than leaving you to
+read the number. If your runs end that way, raise `limits.memory` and
+`smate restart` the task — the new limit is read when the container is created. Disk is not capped — that needs a storage driver with quota support —
+so space is freed only by `clean`.
 
 `SLEEP` catches a run that hangs or waits in silence, not every run that waits: a
 harness that spins a progress indicator keeps printing, and the mark never

@@ -129,3 +129,24 @@ func TestTailLogReturnsTheEnd(t *testing.T) {
 		t.Errorf("the tail is not the end of the file: %q", got[len(got)-4:])
 	}
 }
+
+// 137 is a kill, not a failure the agent chose: it must be told apart from an
+// ordinary non-zero exit, which is what the hint hangs on.
+func TestOutOfMemory(t *testing.T) {
+	cases := []struct {
+		state RunState
+		exit  int
+		want  bool
+	}{
+		{StateFailed, 137, true},
+		{StateFailed, 1, false},
+		{StateDone, 0, false},
+		{StateCutOff, -1, false},
+	}
+	for _, c := range cases {
+		r := RunInfo{State: c.state, Exit: c.exit}
+		if got := r.OutOfMemory(); got != c.want {
+			t.Errorf("%s exit %d: OutOfMemory = %v, want %v", c.state, c.exit, got, c.want)
+		}
+	}
+}

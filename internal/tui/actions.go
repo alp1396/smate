@@ -203,6 +203,10 @@ func (a actionsModel) roleRow(r roles.Role) row {
 	if run, ok := a.roleRun(r.Name); ok {
 		out.note = fmt.Sprintf("run %d  %s", run.Meta.N, run.State)
 		out.state = run.State
+		if run.OutOfMemory() {
+			out.note += "  (out of memory)"
+			out.hint = core.OOMHint
+		}
 		return out
 	}
 	out.note, out.state = "idle", core.StateNone

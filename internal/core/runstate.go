@@ -30,6 +30,17 @@ const (
 	StateDone    RunState = "FINISHED" // session gone, exit code 0
 )
 
+// exitOOMKilled is what the wrapper records when the run was SIGKILLed (128+9).
+// Inside a task container that is nearly always the memory cap: the cgroup is
+// capped by limits.memory and the kernel picks the fattest process in it, which
+// is the agent. On its own the number reads like any other non-zero exit, and the
+// log ends on a bare "Killed" — so it is spelled out wherever a run is shown.
+const exitOOMKilled = 137
+
+// OOMHint is the single wording of what to do about it, so the CLI and the TUI
+// do not drift into explaining the same code two different ways.
+const OOMHint = "killed by the kernel, out of memory — raise limits.memory in ~/.smate/config.yml (2g by default) and smate restart the task"
+
 // sleepAfter is how long a live session may stay silent before it is flagged.
 // Not a timeout: nothing is killed, the mark invites you to attach.
 const sleepAfter = time.Minute
@@ -42,6 +53,12 @@ type RunInfo struct {
 	Exit      int           // exit code, valid when the run is FAILED or FINISHED
 	HasResult bool          // every declared output exists and is not empty
 	Finished  time.Time     // mtime of the exit code file, when there is one
+}
+
+// OutOfMemory reports whether the run was killed rather than having failed on
+// its own.
+func (r RunInfo) OutOfMemory() bool {
+	return r.State == StateFailed && r.Exit == exitOOMKilled
 }
 
 func LastRun(s *store.Store, id string) (RunInfo, bool, error) {

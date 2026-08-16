@@ -21,8 +21,17 @@ func HasTmux(container string) bool {
 // -u forces UTF-8 regardless of the locale: this is where the tmux server is born,
 // and get it wrong here and every glyph the agent draws is an underscore in the
 // buffer forever.
+//
+// mouse on makes the wheel scroll the pane instead of being swallowed: without it
+// an attached human cannot look back at what the agent printed. It is set after the
+// session exists rather than required to succeed — a tmux too old to know the option
+// is a worse scrollback, not a reason to fail the run.
 func StartSession(container, session, command string) error {
-	return tmux(container, "-u", "new-session", "-d", "-s", session, command)
+	if err := tmux(container, "-u", "new-session", "-d", "-s", session, command); err != nil {
+		return err
+	}
+	_ = tmux(container, "set-option", "-t", session, "mouse", "on")
+	return nil
 }
 
 // PipePane copies everything the pane prints into a file in the container: raw

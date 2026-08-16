@@ -64,9 +64,12 @@ type Global struct {
 	Editor string `yaml:"editor,omitempty"`
 }
 
-// defaultLimits are tight on purpose: a dependency build hits the memory cap and
-// comes out as CUT OFF rather than swapping the host to death.
-var defaultLimits = Limits{CPUs: "1", Memory: "512m", PIDs: 512}
+// defaultLimits are tight on purpose: a runaway build hits the memory cap and is
+// killed rather than swapping the host to death. 2 GB is where that line sits —
+// low enough to stop a leak, high enough for the thing the container exists to
+// run: an agent CLI is a Node process that lives past a gigabyte on a long
+// session, and it shares the cap with whatever it builds inside.
+var defaultLimits = Limits{CPUs: "1", Memory: "2g", PIDs: 512}
 
 func (l Limits) WithDefaults() Limits {
 	if l.CPUs == "" {
