@@ -60,7 +60,7 @@ func key(s string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []r
 func TestMenuShape(t *testing.T) {
 	a := testActions(t, task.StatusActive, core.RunInfo{}, false)
 	want := []string{
-		"Apply changes", "Connect shell", "Open claude", "Open codex",
+		"Apply changes", "Connect shell", "Open claude", "Open codex", "Open in editor",
 		"──", "planner", "coder", "──", "Clean",
 	}
 	if got := labels(a.rows()); strings.Join(got, "|") != strings.Join(want, "|") {
@@ -226,7 +226,7 @@ func TestRunWaitsForItsInputs(t *testing.T) {
 
 func TestCleanedTaskOffersNothingToRun(t *testing.T) {
 	a := testActions(t, task.StatusCleaned, core.RunInfo{}, false)
-	for _, label := range []string{"Apply changes", "Connect shell", "Open claude", "Open codex", "planner", "coder"} {
+	for _, label := range []string{"Apply changes", "Connect shell", "Open claude", "Open codex", "Open in editor", "planner", "coder"} {
 		if r, _ := rowNamed(t, a, label); r.off == "" {
 			t.Errorf("%s offered on a cleaned task", label)
 		}

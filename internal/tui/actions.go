@@ -33,6 +33,7 @@ type actionKind int
 const (
 	actApply actionKind = iota
 	actShell
+	actOpenIDE
 	actClean
 	actConnect
 	actRun
@@ -130,7 +131,14 @@ func (a actionsModel) menu() []row {
 	for _, h := range a.harnesses {
 		rows = append(rows, a.harnessRow(h))
 	}
-	rows = append(rows, row{sep: true})
+	// The editor closes that group from the other side: also a way in, but to the
+	// workspace on the host rather than to the container.
+	rows = append(rows, row{
+		label: "Open in editor",
+		note:  "workspace on the host",
+		hint:  "open the task's workspace in your editor; its git panel shows the diff apply will import",
+		act:   action{kind: actOpenIDE},
+	}, row{sep: true})
 
 	// The role section always has a line in it: two separators with nothing between
 	// them read as a broken menu rather than as an empty library.
@@ -436,6 +444,9 @@ func (a actionsModel) fire(act action, s *store.Store) (actionsModel, tea.Cmd) {
 	case actShell:
 		cmd, err := core.ShellCmd(s, t.ID)
 		return a, execAttached(t, "the shell", "", cmd, err)
+	case actOpenIDE:
+		cmd, warnings, err := core.OpenIDECmd(s, t.ID)
+		return a, execAttached(t, "the editor", strings.Join(warnings, "; "), cmd, err)
 	case actClean:
 		a.status = "cleaning…"
 		return a, doClean(s, t)

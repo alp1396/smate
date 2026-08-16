@@ -147,13 +147,14 @@ smate --help                    # everything below, as a list
 
 smate start 123 [--image IMG]   # snapshot the current branch → container smate-123
 smate shell [<id>]              # enter the container and work
+smate open-ide [<id>]           # open the task's workspace in your editor
 smate apply [<id>]              # validate the changes and import them as branch <id>
 smate list                      # tasks, newest first, with their statuses and runs
 smate clean [<id>] [--purge]    # stop the container and free space
 ```
 
 Bare `smate` opens the task list; enter on a task opens it on its **actions**
-tab: apply, a shell, every harness from `config.yml`, every role in the library
+tab: apply, a shell, the editor, every harness from `config.yml`, every role in the library
 with what it is doing right now, and clean. Enter on a harness opens that CLI in
 the container; enter on a role gives it connect, run, run-with-a-note, attach and
 stop; attach and stop are inert unless that role is the one running, and run is
@@ -174,6 +175,41 @@ smate shell            # edit, commit into the sandbox's own git, exit
 smate apply            # → branch 123 in the repository; push and MR stay manual
 smate clean            # drop the container and the snapshot
 ```
+
+## Opening the workspace in an editor
+
+`smate open-ide` hands the task's workspace — `~/.smate/tasks/<id>/workspace` —
+to the editor on the host. Nothing is copied and nothing is synchronised: that
+directory is what the container has mounted at `/workspace`, and it holds the
+sandbox's own throwaway git, so the editor's git panel shows exactly the diff
+against `baseline` that `apply` turns into a patch. Reading what an agent did,
+fixing a line by hand and committing into the sandbox all work from there.
+
+The editor is a command line, taken from `editor:` in `~/.smate/config.yml`,
+then `$VISUAL`, then `$EDITOR`, then `code` if it is on the machine — a
+configured `editor: code -n` keeps its flags. Nothing is written into the
+config by default: guessing which editor a machine has is how one launches the
+wrong one.
+
+```yaml
+# ~/.smate/config.yml
+editor: code
+```
+
+Two things follow from the workspace being a plain host directory. The
+toolchain is not there — it lives in the container — so a language server works
+off whatever the host has, and completion into dependencies installed inside the
+sandbox will not resolve; for anything that needs the real environment there is
+`smate shell`. And while a run is `WORKING` or `SLEEP` the agent writes into the
+same files, so the command says so before opening: nothing is locked, but the
+last writer wins.
+
+What an editor leaves in the workspace — `.vscode/`, `.idea/`, swap files — is
+governed by the project's own `.gitignore`: it is a tracked file, so it travels
+in with the snapshot and the sandbox git obeys it. smate keeps no list of its
+own. A project that ignores such files anywhere else — a global gitignore, the
+host repository's `.git/info/exclude` — does not carry that with it, and those
+files will show up in the list `apply` prints. That is the place to notice them.
 
 ## Roles
 

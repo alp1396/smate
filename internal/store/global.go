@@ -56,6 +56,12 @@ type Global struct {
 	Harness map[string]Harness `yaml:"harness"`
 	Cache   map[string]Cache   `yaml:"cache,omitempty"`
 	Limits  Limits             `yaml:"limits"`
+
+	// Editor opens a task's workspace on the host. It is a command line, not a
+	// path, so `code -n` works. Empty falls back to $VISUAL, $EDITOR and then
+	// code; it is left out of the written defaults because guessing which editor
+	// a machine has is how one ends up launching the wrong one.
+	Editor string `yaml:"editor,omitempty"`
 }
 
 // defaultLimits are tight on purpose: a dependency build hits the memory cap and

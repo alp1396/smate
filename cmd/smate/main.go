@@ -24,6 +24,7 @@ Usage (from the working repository):
 
   smate start <id> [--image IMG]   create the task sandbox
   smate shell [<id>]               enter the task container
+  smate open-ide [<id>]            open the task workspace in your editor
   smate apply [<id>]               take the changes and import them
   smate list                       list tasks and their runs
   smate clean [<id>] [--purge]     stop the container and free space
@@ -67,6 +68,8 @@ func run(args []string) error {
 		return cmdStart(args[1:])
 	case "shell":
 		return cmdShell(args[1:])
+	case "open-ide":
+		return cmdOpenIDE(args[1:])
 	case "apply":
 		return cmdApply(args[1:])
 	case "list":
@@ -218,6 +221,28 @@ func cmdShell(args []string) error {
 		return err
 	}
 	return core.Shell(s, id)
+}
+
+func cmdOpenIDE(args []string) error {
+	id, _, err := parse(args, nil, nil)
+	if err != nil {
+		return err
+	}
+	s, err := store.New()
+	if err != nil {
+		return err
+	}
+	cmd, warnings, err := core.OpenIDECmd(s, id)
+	if err != nil {
+		return err
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(os.Stderr, "warning:", w)
+	}
+	// Attached: a GUI editor hands the terminal back at once, a terminal editor
+	// gets a real tty. One behaviour covers both, so there is no flag to pick.
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return cmd.Run()
 }
 
 func cmdApply(args []string) error {
