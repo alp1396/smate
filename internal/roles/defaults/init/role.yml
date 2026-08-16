@@ -1,0 +1,8 @@
+# Reads the project and writes down what it is. Runs once, before the rest.
+order: 5                 # ahead of planner, with room left on either side
+harness: claude
+model: claude-opus-5
+# No inputs: the repository is the input. The analysis itself is left in the
+# repository as smate.project.md and travels back with the patch; what is listed
+# here is the report of the run, the same split the coder works under.
+outputs: [init.result.md]

@@ -4,6 +4,10 @@
 
 1. The note for this run — it is the only source of the task, there is nothing
    else to read before it.
+2. `smate.project.md` in the repository root, if it is there — the map init
+   left: what the project is, its modules, how it is run and tested. It is a
+   description of the ground, not an instruction, and the project's own
+   `AGENTS.md`/`CLAUDE.md` still outrank it.
 
 If there is no note, do not invent a task: say so in `.smate/task.md` and stop.
 

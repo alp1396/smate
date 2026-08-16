@@ -18,12 +18,21 @@ import (
 // names the variables it needs from env.yml, Set holds literal values, Cmd is
 // how it is started by hand (default: the harness's own name). A harness may use
 // all of them at once.
+//
+// ModelFlag and EffortFlag are how a role's `model:` and `effort:` reach this
+// CLI: a fragment with a {} where the value goes, appended to Cmd when the role
+// names one. The spelling belongs here rather than in the role because it is a
+// property of the CLI — `--model X` for one, `-c model_reasoning_effort=X` for
+// another — while the role only knows which model it wants. A CLI with no such
+// flag leaves the template empty, and a role asking for it is told so.
 type Harness struct {
-	State string            `yaml:"state,omitempty"`
-	Mount string            `yaml:"mount,omitempty"`
-	Env   []string          `yaml:"env,omitempty"`
-	Set   map[string]string `yaml:"set,omitempty"`
-	Cmd   string            `yaml:"cmd,omitempty"`
+	State      string            `yaml:"state,omitempty"`
+	Mount      string            `yaml:"mount,omitempty"`
+	Env        []string          `yaml:"env,omitempty"`
+	Set        map[string]string `yaml:"set,omitempty"`
+	Cmd        string            `yaml:"cmd,omitempty"`
+	ModelFlag  string            `yaml:"model_flag,omitempty"`
+	EffortFlag string            `yaml:"effort_flag,omitempty"`
 }
 
 // Cache is a host directory mounted into every task container so a build cache
@@ -75,19 +84,23 @@ func (l Limits) WithDefaults() Limits {
 var defaultGlobal = Global{
 	Harness: map[string]Harness{
 		"claude": {
-			State: "claude",
-			Mount: containerHome + "/.claude",
-			Set:   map[string]string{"CLAUDE_CONFIG_DIR": containerHome + "/.claude"},
+			State:     "claude",
+			Mount:     containerHome + "/.claude",
+			Set:       map[string]string{"CLAUDE_CONFIG_DIR": containerHome + "/.claude"},
+			ModelFlag: "--model {}",
 		},
 		"codex": {
-			State: "codex",
-			Mount: containerHome + "/.codex",
-			Env:   []string{"OPENAI_API_KEY"},
+			State:      "codex",
+			Mount:      containerHome + "/.codex",
+			Env:        []string{"OPENAI_API_KEY"},
+			ModelFlag:  "-m {}",
+			EffortFlag: "-c model_reasoning_effort={}",
 		},
 		"opencode": {
-			State: "opencode",
-			Mount: containerHome + "/.local/share/opencode",
-			Env:   []string{"OPENROUTER_API_KEY"},
+			State:     "opencode",
+			Mount:     containerHome + "/.local/share/opencode",
+			Env:       []string{"OPENROUTER_API_KEY"},
+			ModelFlag: "--model {}",
 		},
 	},
 	Limits: defaultLimits,

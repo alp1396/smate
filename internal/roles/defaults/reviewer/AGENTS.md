@@ -5,7 +5,9 @@
 1. The note for this run, if the prompt named one. It narrows what to look at
    and wins over anything else here.
 2. `.smate/coder.result.md` — what the coder says it did.
-3. The diff itself: `git diff` against the `baseline` commit.
+3. `smate.project.md` in the repository root, if it is there — the map init
+   left, for placing the change in the system it lands in.
+4. The diff itself: `git diff` against the `baseline` commit.
 
 Read the diff even when the report is convincing. The report is a claim.
 

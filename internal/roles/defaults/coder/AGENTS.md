@@ -7,8 +7,11 @@
 2. `.smate/task.md` — the task itself.
 3. `.smate/plan.md`, if it is there — the plan planner left. Read it and follow
    it; it is how the task was decided to be done.
-4. The project's own `AGENTS.md`/`CLAUDE.md` in the repository root — the rules
-   of this codebase.
+4. `smate.project.md` in the repository root, if it is there — the map init
+   left: the modules, how the project is run and tested, the stack. It tells
+   you where things are, not what to do.
+5. The project's own `AGENTS.md`/`CLAUDE.md` in the repository root — the rules
+   of this codebase. They outrank the map.
 
 If there is neither a note nor a task, do not invent one: say so in your report
 and stop.

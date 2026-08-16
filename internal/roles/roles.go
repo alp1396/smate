@@ -32,11 +32,18 @@ type Role struct {
 	Name string `yaml:"-"`
 	// Order is the order of the work, not of the alphabet. The bundled roles
 	// are 10, 20, 30, leaving room to slot one of your own between them.
-	Order   int      `yaml:"order,omitempty"`
-	Harness string   `yaml:"harness"`
-	Cmd     string   `yaml:"cmd"`
+	Order   int    `yaml:"order,omitempty"`
+	Harness string `yaml:"harness"`
+	// Model and Effort are values, not flags: how they reach the CLI is the
+	// harness's business (model_flag, effort_flag in config.yml). Both are
+	// optional — left out, the harness runs on whatever it defaults to.
+	Model   string   `yaml:"model,omitempty"`
+	Effort  string   `yaml:"effort,omitempty"`
 	Inputs  []string `yaml:"inputs,omitempty"`
 	Outputs []string `yaml:"outputs"`
+	// Cmd is the whole command line roles used to carry. It is still read so a
+	// file left from then can be told where its model went, and is never run.
+	Cmd string `yaml:"cmd,omitempty"`
 }
 
 var ErrNotFound = errors.New("role not found")
@@ -165,11 +172,11 @@ func before(a, b Role) bool {
 }
 
 func (r Role) validate() error {
-	if strings.TrimSpace(r.Cmd) == "" {
-		return fmt.Errorf("cmd is empty — nothing to run in the container")
-	}
 	if strings.TrimSpace(r.Harness) == "" {
 		return fmt.Errorf("harness is empty — set it to a name from ~/.smate/config.yml")
+	}
+	if strings.TrimSpace(r.Cmd) != "" {
+		return fmt.Errorf("cmd is no longer read — the harness builds the command line; move the model into model: and the reasoning effort into effort:, and drop cmd")
 	}
 	// A singular `output:` key lands here too: it is left unread, so the list
 	// comes out empty and the message has to name the key it wants.

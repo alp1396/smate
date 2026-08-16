@@ -1,6 +1,6 @@
 # Writes the code. The first role of a task.
 order: 20
 harness: claude          # where env, mounts and state come from (config.yml)
-cmd: claude --model claude-opus-5             # the full command; add --model here if you want one
+model: claude-opus-5     # the value; the flag comes from the harness
 inputs: [task.md]        # must be in .smate/ or the run refuses to start
 outputs: [coder.result.md] # the artefacts the run is judged by

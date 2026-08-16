@@ -49,20 +49,33 @@ harness:
     mount: /home/smate/.claude  # mounted here inside the container
     set:                        # literal values, as opposed to keys
       CLAUDE_CONFIG_DIR: /home/smate/.claude
+    model_flag: "--model {}"    # how a role's model: reaches this CLI
   codex:
     state: codex
     mount: /home/smate/.codex
     env: [OPENAI_API_KEY]
+    model_flag: "-m {}"
+    effort_flag: "-c model_reasoning_effort={}"
   opencode:
     state: opencode
     mount: /home/smate/.local/share/opencode
     env: [OPENROUTER_API_KEY]
+    model_flag: "--model {}"
 ```
 
 Each harness is also something to open by hand: the task screen lists them under
 the shell, and picking one runs it in the container with the terminal handed
 over. What it runs is the harness's own name unless an optional `cmd:` says
 otherwise — `cmd: opencode run --tui`, say.
+
+`model_flag` and `effort_flag` are how a role's `model:` and `effort:` turn into
+a command line: the fragment is appended to the harness's command with the value
+in place of `{}`, and left out entirely when the role names nothing. The
+spelling lives here, with the harness, because it is a property of the CLI —
+`--model X` for one, `-c model_reasoning_effort=X` for another — while the role
+only knows which model it wants. Claude Code has no reasoning-effort flag at
+all, so `effort_flag` is simply absent for it; a role that asks for effort
+anyway is run on the default and told so in a warning.
 
 `state` is what makes a login survive a new container. It only works when the
 CLI keeps everything in one directory — Claude Code splits its state between
@@ -164,32 +177,72 @@ smate clean            # drop the container and the snapshot
 
 ## Roles
 
-A role is a described performer: which harness runs it, with what command, which
+A role is a described performer: which harness runs it, on which model, which
 artefacts it needs and which one it must leave behind. Roles live in
 `~/.smate/roles/<name>/` — a `role.yml` and an `AGENTS.md` — and are shared
-between projects. `planner`, `coder` and `reviewer` ship with the binary.
+between projects. `init`, `planner`, `coder` and `reviewer` ship with the
+binary.
 
 ```yaml
 # ~/.smate/roles/reviewer/role.yml
-order: 30                           # where it sits in every list smate prints
-harness: claude                     # where env, mounts and state come from
-cmd: claude --model claude-sonnet-5 # the full command run in the container
-inputs: [coder.result.md]           # must be in .smate/, or the run refuses
-outputs: [reviewer.result.md]       # what the run is judged by
+order: 30                      # where it sits in every list smate prints
+harness: claude                # where env, mounts and state come from
+model: claude-sonnet-5         # the value; the flag comes from the harness
+                               # effort: high — likewise, where the CLI has one
+inputs: [coder.result.md]      # must be in .smate/, or the run refuses
+outputs: [reviewer.result.md]  # what the run is judged by
 ```
 
 `order` is the order of the work rather than of the alphabet — planner, coder,
 reviewer is what one wants to read, and `coder, planner, reviewer` is what
-sorting by name gives for free. The bundled three are numbered 10, 20 and 30, so
-a role of your own fits between them without renumbering anything. A role with no
-`order` sorts after every numbered one, among its unnumbered peers by name.
+sorting by name gives for free. The bundled ones are numbered 5, 10, 20 and 30,
+so a role of your own fits between them without renumbering anything. A role with
+no `order` sorts after every numbered one, among its unnumbered peers by name.
 
-The model is part of `cmd`, because that is where the harness takes it from —
-smate does not interpret it. The bundled `planner` reads nothing but the note
+`harness`, `model` and `effort` are three separate values because only the first
+is a choice about the role. The role says which model it wants; the harness in
+`config.yml` says how that CLI is told about it (`model_flag`, `effort_flag`), so
+pointing a role at another harness is one line rather than a rewritten command.
+Both `model` and `effort` are optional — left out, the CLI runs on its own
+default. A role that carries the old `cmd:` is refused with a message saying
+where its model has moved, rather than quietly running the wrong one.
+
+The bundled `planner` reads nothing but the note
 for the run and leaves `.smate/task.md` and `.smate/plan.md`; the bundled
 `coder` requires the task and follows the plan when one is there, and leaves
 `.smate/coder.result.md`; the bundled `reviewer` reads that report and the diff
-against `baseline`, and leaves `.smate/reviewer.result.md`.
+against `baseline`, and leaves `.smate/reviewer.result.md`. The bundled `init`
+is described below.
+
+### init, and results that belong in the repository
+
+`init` is run once on a repository nobody has described yet. It reads the
+snapshot and writes `smate.project.md` in the repository root: what the project
+is, its modules, how it is started, how it is tested, what stack it stands on.
+Alongside it, when the project can be containerised at all, it writes
+`smate.Dockerfile` — an image to run and test the repository on. The other three
+roles read `smate.project.md` before starting, when it is there.
+
+Both files sit in the repository, not in `.smate/`, and that is the point: they
+are meant to be committed, so they come back through the patch series like any
+other change and are reviewed the same way. What `outputs:` lists is
+`init.result.md` — the report of the run. This is the same split the coder works
+under, where the product is code and the artefact is a report about it, and it is
+why `outputs:` needs no notion of a repository path: an artefact is cleared
+before every run, and clearing a file of the project is not something a role
+should be able to ask for.
+
+Two things `init` cannot do, and says so rather than pretending otherwise. It
+cannot build the Dockerfile it proposes — there is no Docker inside the sandbox —
+so the file is a proposal carrying the build command in its opening comment.
+And it refuses to write one at all for a project that does not belong in a
+container: a desktop or mobile application, a toolchain absent on Linux, anything
+wanting the host kernel or a display. A Dockerfile that cannot work is worse than
+none, because somebody will try to build it.
+
+Nothing in smate reads `smate.Dockerfile` on its own: `image:` in `.smate.yml`
+still takes a name from the image library or a docker reference. Building it and
+deciding what to do with it is yours, after `apply`.
 
 `outputs` is a list, and a run has produced a result only when every one of them
 is written and not empty — half a plan is not something the next role should be

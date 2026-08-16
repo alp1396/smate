@@ -19,30 +19,33 @@ func Roles(s *store.Store) ([]roles.Role, error) {
 }
 
 // LoadRole reads one role and checks what only the control plane can: that its
-// harness is configured. An unknown one means no keys and no state mount.
-func LoadRole(s *store.Store, name string) (roles.Role, error) {
+// harness is configured. An unknown one means no keys and no state mount. The
+// harness comes back with it because that is where the command line is built
+// from — the role names a model, the harness knows the flag.
+func LoadRole(s *store.Store, name string) (roles.Role, store.Harness, error) {
 	dir := s.RolesDir()
 	if err := roles.Seed(dir); err != nil {
-		return roles.Role{}, err
+		return roles.Role{}, store.Harness{}, err
 	}
 	r, err := roles.Load(dir, name)
 	if err != nil {
-		return roles.Role{}, err
+		return roles.Role{}, store.Harness{}, err
 	}
 	cfg, err := s.LoadGlobal()
 	if err != nil {
-		return roles.Role{}, err
+		return roles.Role{}, store.Harness{}, err
 	}
-	if _, ok := cfg.Harness[r.Harness]; !ok {
+	h, ok := cfg.Harness[r.Harness]
+	if !ok {
 		known := make([]string, 0, len(cfg.Harness))
 		for n := range cfg.Harness {
 			known = append(known, n)
 		}
 		sort.Strings(known)
-		return roles.Role{}, fmt.Errorf("role %s: harness %q is not in %s (configured: %s)",
+		return roles.Role{}, store.Harness{}, fmt.Errorf("role %s: harness %q is not in %s (configured: %s)",
 			r.Name, r.Harness, s.ConfigPath(), strings.Join(known, ", "))
 	}
-	return r, nil
+	return r, h, nil
 }
 
 func ResetRoles(s *store.Store, name string) ([]string, error) {

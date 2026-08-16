@@ -8,13 +8,14 @@ import (
 	"testing"
 )
 
-func TestBundledIsPlannerCoderAndReviewer(t *testing.T) {
+func TestBundledIsInitPlannerCoderAndReviewer(t *testing.T) {
 	names, err := Bundled()
 	if err != nil {
 		t.Fatalf("Bundled: %v", err)
 	}
-	if len(names) != 3 || names[0] != "coder" || names[1] != "planner" || names[2] != "reviewer" {
-		t.Fatalf("bundled roles = %v, want [coder planner reviewer]", names)
+	want := []string{"coder", "init", "planner", "reviewer"} // Bundled sorts by name
+	if strings.Join(names, " ") != strings.Join(want, " ") {
+		t.Fatalf("bundled roles = %v, want %v", names, want)
 	}
 }
 
@@ -30,6 +31,10 @@ func TestSeedWritesDefaultsOnce(t *testing.T) {
 	}
 	if len(r.Outputs) != 1 || r.Outputs[0] != "reviewer.result.md" || len(r.Inputs) != 1 {
 		t.Errorf("unexpected default reviewer: %+v", r)
+	}
+	// The bundled roles name a model and leave the flag to the harness.
+	if r.Model == "" {
+		t.Error("default reviewer names no model")
 	}
 	if _, err := os.Stat(AgentsPath(dir, "reviewer")); err != nil {
 		t.Errorf("reviewer instructions not seeded: %v", err)
@@ -96,16 +101,18 @@ func TestLoadRejectsBrokenDefinitions(t *testing.T) {
 		yml  string
 		want string
 	}{
-		{"no cmd", "harness: claude\noutputs: [x.md]\n", "cmd is empty"},
-		{"no harness", "cmd: claude\noutputs: [x.md]\n", "harness is empty"},
-		{"no outputs", "harness: claude\ncmd: claude\n", "outputs is empty"},
+		{"no harness", "model: claude-opus-5\noutputs: [x.md]\n", "harness is empty"},
+		// The role used to carry the whole command line. A file left from then runs
+		// the wrong model silently unless it is stopped and told where it moved.
+		{"cmd from before", "harness: claude\ncmd: claude --model x\noutputs: [x.md]\n", "cmd is no longer read"},
+		{"no outputs", "harness: claude\n", "outputs is empty"},
 		// The key was `output` before it took a list. A role file left from then
 		// must say so rather than look like a role that declares nothing.
-		{"singular output key", "harness: claude\ncmd: claude\noutput: x.md\n", "outputs is empty"},
-		{"output in inputs", "harness: claude\ncmd: claude\ninputs: [x.md]\noutputs: [x.md]\n", "deleted at the start"},
-		{"second output in inputs", "harness: claude\ncmd: claude\ninputs: [y.md]\noutputs: [x.md, y.md]\n", "deleted at the start"},
-		{"path in output", "harness: claude\ncmd: claude\noutputs: [sub/x.md]\n", "without a path"},
-		{"escaping input", "harness: claude\ncmd: claude\ninputs: [../../etc/passwd]\noutputs: [x.md]\n", "without a path"},
+		{"singular output key", "harness: claude\noutput: x.md\n", "outputs is empty"},
+		{"output in inputs", "harness: claude\ninputs: [x.md]\noutputs: [x.md]\n", "deleted at the start"},
+		{"second output in inputs", "harness: claude\ninputs: [y.md]\noutputs: [x.md, y.md]\n", "deleted at the start"},
+		{"path in output", "harness: claude\noutputs: [sub/x.md]\n", "without a path"},
+		{"escaping input", "harness: claude\ninputs: [../../etc/passwd]\noutputs: [x.md]\n", "without a path"},
 		{"not yaml", "harness: [\n", "parse"},
 	}
 	dir := t.TempDir()
@@ -168,7 +175,7 @@ func TestLoadAllFollowsTheOrderField(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	const rest = "harness: claude\ncmd: claude\noutputs: [out.md]\n"
+	const rest = "harness: claude\noutputs: [out.md]\n"
 	write("reviewer", "order: 30\n"+rest)
 	write("planner", "order: 10\n"+rest)
 	write("coder", "order: 20\n"+rest)
@@ -198,13 +205,13 @@ func TestBundledRolesLeaveRoomBetweenThem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
-	want := map[string]int{"planner": 10, "coder": 20, "reviewer": 30}
+	want := map[string]int{"init": 5, "planner": 10, "coder": 20, "reviewer": 30}
 	for _, r := range all {
 		if want[r.Name] != r.Order {
 			t.Errorf("%s order = %d, want %d", r.Name, r.Order, want[r.Name])
 		}
 	}
-	if all[0].Name != "planner" || all[2].Name != "reviewer" {
+	if all[0].Name != "init" || all[3].Name != "reviewer" {
 		t.Errorf("bundled order = %v", all)
 	}
 }
