@@ -368,18 +368,26 @@ func cmdRoles(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tORDER\tHARNESS\tCMD\tINPUTS\tOUTPUTS")
+	fmt.Fprintln(w, "NAME\tORDER\tHARNESS\tMODEL\tEFFORT\tINPUTS\tOUTPUTS")
 	for _, r := range list {
 		inputs := strings.Join(r.Inputs, " ")
 		if inputs == "" {
 			inputs = "-"
+		}
+		// A dash rather than a blank: the harness's own default is a choice too.
+		model, effort := r.Model, r.Effort
+		if model == "" {
+			model = "-"
+		}
+		if effort == "" {
+			effort = "-"
 		}
 		// The rows are already in role order; the column says which number to edit.
 		order := "-"
 		if r.Order != 0 {
 			order = strconv.Itoa(r.Order)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Name, order, r.Harness, r.Cmd, inputs, strings.Join(r.Outputs, " "))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Name, order, r.Harness, model, effort, inputs, strings.Join(r.Outputs, " "))
 	}
 	return w.Flush()
 }

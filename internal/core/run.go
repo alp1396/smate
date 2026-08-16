@@ -55,13 +55,13 @@ func startRole(s *store.Store, id, roleName, message string, force, connect bool
 	if err != nil {
 		return RunMeta{}, nil, nil, err
 	}
-	role, err := LoadRole(s, roleName)
+	role, harness, err := LoadRole(s, roleName)
 	if err != nil {
 		return RunMeta{}, nil, nil, err
 	}
 	ws := s.Workspace(t.ID)
 	container := t.Container()
-	var warnings []string
+	cmd, warnings := roleCmdLine(role.Harness, harness, role)
 
 	// The preflight order matters: the outputs are deleted last (step 7), so a run
 	// that trips over something trivial has not destroyed the previous result.
@@ -150,7 +150,7 @@ func startRole(s *store.Store, id, roleName, message string, force, connect bool
 		}
 	}
 
-	meta := RunMeta{N: n, Role: role.Name, Cmd: role.Cmd, Outputs: role.Outputs, Started: time.Now().UTC()}
+	meta := RunMeta{N: n, Role: role.Name, Cmd: cmd, Outputs: role.Outputs, Started: time.Now().UTC()}
 	if err := writeRunMeta(ws, meta); err != nil {
 		return RunMeta{}, nil, nil, err
 	}
@@ -158,7 +158,7 @@ func startRole(s *store.Store, id, roleName, message string, force, connect bool
 	if connect {
 		prompt = buildConnectPrompt(role, instructions, note)
 	}
-	if err := writeScript(ws, n, role.Cmd, prompt); err != nil {
+	if err := writeScript(ws, n, cmd, prompt); err != nil {
 		return RunMeta{}, nil, nil, err
 	}
 

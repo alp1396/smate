@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"smate/internal/roles"
 	"smate/internal/runtime"
 	"smate/internal/store"
 )
@@ -72,6 +73,41 @@ func harnessCmdLine(name string, h store.Harness) string {
 		return h.Cmd
 	}
 	return name
+}
+
+// flagPlaceholder is where the value goes in model_flag and effort_flag.
+const flagPlaceholder = "{}"
+
+// roleCmdLine builds the command a role is run through: the harness's own
+// command line, then a fragment per value the role named. This is the only place
+// the two halves meet — the role knows which model it wants, the harness knows
+// how to spell it.
+//
+// A value the harness cannot express is a warning rather than a refusal: the run
+// is still the right role in the right container, only on the CLI's default
+// model, and the misconfiguration is in config.yml, not at the boundary.
+func roleCmdLine(name string, h store.Harness, r roles.Role) (string, []string) {
+	parts := []string{harnessCmdLine(name, h)}
+	var warnings []string
+	for _, f := range []struct{ field, value, tmpl string }{
+		{"model", r.Model, h.ModelFlag},
+		{"effort", r.Effort, h.EffortFlag},
+	} {
+		switch {
+		case f.value == "":
+		case strings.TrimSpace(f.tmpl) == "":
+			warnings = append(warnings, fmt.Sprintf(
+				"role %s asks for %s %s, but harness %s has no %s_flag — running on the default",
+				r.Name, f.field, f.value, name, f.field))
+		case !strings.Contains(f.tmpl, flagPlaceholder):
+			warnings = append(warnings, fmt.Sprintf(
+				"harness %s: %s_flag %q has no %s to put the value in — %s %s is dropped",
+				name, f.field, f.tmpl, flagPlaceholder, f.field, f.value))
+		default:
+			parts = append(parts, strings.ReplaceAll(f.tmpl, flagPlaceholder, runtime.ShellQuote(f.value)))
+		}
+	}
+	return strings.Join(parts, " "), warnings
 }
 
 type injection struct {

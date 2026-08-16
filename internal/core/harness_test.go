@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"smate/internal/roles"
 	"smate/internal/store"
 )
 
@@ -223,5 +224,60 @@ func TestHarnessInjectionEmptyConfig(t *testing.T) {
 	}
 	if len(inj.Env) != 0 || len(inj.Mounts) != 0 || len(inj.Warnings) != 0 {
 		t.Errorf("an empty config must inject nothing: %+v", inj)
+	}
+}
+
+// The role names values, the harness spells them: the same role.yml under a
+// different harness has to come out as that CLI's own flags.
+func TestRoleCmdLineRendersTheHarnessFlags(t *testing.T) {
+	claude := store.Harness{ModelFlag: "--model {}"}
+	codex := store.Harness{Cmd: "codex exec", ModelFlag: "-m {}", EffortFlag: "-c model_reasoning_effort={}"}
+
+	cases := []struct {
+		name     string
+		harness  string
+		h        store.Harness
+		role     roles.Role
+		want     string
+		warnings int
+	}{
+		{
+			name: "model only", harness: "claude", h: claude,
+			role: roles.Role{Name: "coder", Model: "claude-opus-5"},
+			want: "claude --model 'claude-opus-5'",
+		},
+		{
+			name: "model and effort", harness: "codex", h: codex,
+			role: roles.Role{Name: "coder", Model: "gpt-5-codex", Effort: "high"},
+			want: "codex exec -m 'gpt-5-codex' -c model_reasoning_effort='high'",
+		},
+		{
+			name: "nothing named", harness: "codex", h: codex,
+			role: roles.Role{Name: "coder"},
+			want: "codex exec",
+		},
+		{
+			// claude has no effort flag: the run still happens, on the default.
+			name: "effort the harness cannot express", harness: "claude", h: claude,
+			role: roles.Role{Name: "coder", Model: "claude-opus-5", Effort: "high"},
+			want: "claude --model 'claude-opus-5'", warnings: 1,
+		},
+		{
+			name: "flag template without a placeholder", harness: "claude",
+			h:    store.Harness{ModelFlag: "--model"},
+			role: roles.Role{Name: "coder", Model: "claude-opus-5"},
+			want: "claude", warnings: 1,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, warnings := roleCmdLine(c.harness, c.h, c.role)
+			if got != c.want {
+				t.Errorf("cmd = %q, want %q", got, c.want)
+			}
+			if len(warnings) != c.warnings {
+				t.Errorf("warnings = %v, want %d of them", warnings, c.warnings)
+			}
+		})
 	}
 }
