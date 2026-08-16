@@ -8,13 +8,14 @@ import (
 	"testing"
 )
 
-func TestBundledIsPlannerCoderAndReviewer(t *testing.T) {
+func TestBundledIsInitPlannerCoderAndReviewer(t *testing.T) {
 	names, err := Bundled()
 	if err != nil {
 		t.Fatalf("Bundled: %v", err)
 	}
-	if len(names) != 3 || names[0] != "coder" || names[1] != "planner" || names[2] != "reviewer" {
-		t.Fatalf("bundled roles = %v, want [coder planner reviewer]", names)
+	want := []string{"coder", "init", "planner", "reviewer"} // Bundled sorts by name
+	if strings.Join(names, " ") != strings.Join(want, " ") {
+		t.Fatalf("bundled roles = %v, want %v", names, want)
 	}
 }
 
@@ -204,13 +205,13 @@ func TestBundledRolesLeaveRoomBetweenThem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
-	want := map[string]int{"planner": 10, "coder": 20, "reviewer": 30}
+	want := map[string]int{"init": 5, "planner": 10, "coder": 20, "reviewer": 30}
 	for _, r := range all {
 		if want[r.Name] != r.Order {
 			t.Errorf("%s order = %d, want %d", r.Name, r.Order, want[r.Name])
 		}
 	}
-	if all[0].Name != "planner" || all[2].Name != "reviewer" {
+	if all[0].Name != "init" || all[3].Name != "reviewer" {
 		t.Errorf("bundled order = %v", all)
 	}
 }

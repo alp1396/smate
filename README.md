@@ -180,7 +180,8 @@ smate clean            # drop the container and the snapshot
 A role is a described performer: which harness runs it, on which model, which
 artefacts it needs and which one it must leave behind. Roles live in
 `~/.smate/roles/<name>/` — a `role.yml` and an `AGENTS.md` — and are shared
-between projects. `planner`, `coder` and `reviewer` ship with the binary.
+between projects. `init`, `planner`, `coder` and `reviewer` ship with the
+binary.
 
 ```yaml
 # ~/.smate/roles/reviewer/role.yml
@@ -194,9 +195,9 @@ outputs: [reviewer.result.md]  # what the run is judged by
 
 `order` is the order of the work rather than of the alphabet — planner, coder,
 reviewer is what one wants to read, and `coder, planner, reviewer` is what
-sorting by name gives for free. The bundled three are numbered 10, 20 and 30, so
-a role of your own fits between them without renumbering anything. A role with no
-`order` sorts after every numbered one, among its unnumbered peers by name.
+sorting by name gives for free. The bundled ones are numbered 5, 10, 20 and 30,
+so a role of your own fits between them without renumbering anything. A role with
+no `order` sorts after every numbered one, among its unnumbered peers by name.
 
 `harness`, `model` and `effort` are three separate values because only the first
 is a choice about the role. The role says which model it wants; the harness in
@@ -210,7 +211,38 @@ The bundled `planner` reads nothing but the note
 for the run and leaves `.smate/task.md` and `.smate/plan.md`; the bundled
 `coder` requires the task and follows the plan when one is there, and leaves
 `.smate/coder.result.md`; the bundled `reviewer` reads that report and the diff
-against `baseline`, and leaves `.smate/reviewer.result.md`.
+against `baseline`, and leaves `.smate/reviewer.result.md`. The bundled `init`
+is described below.
+
+### init, and results that belong in the repository
+
+`init` is run once on a repository nobody has described yet. It reads the
+snapshot and writes `smate.project.md` in the repository root: what the project
+is, its modules, how it is started, how it is tested, what stack it stands on.
+Alongside it, when the project can be containerised at all, it writes
+`smate.Dockerfile` — an image to run and test the repository on. The other three
+roles read `smate.project.md` before starting, when it is there.
+
+Both files sit in the repository, not in `.smate/`, and that is the point: they
+are meant to be committed, so they come back through the patch series like any
+other change and are reviewed the same way. What `outputs:` lists is
+`init.result.md` — the report of the run. This is the same split the coder works
+under, where the product is code and the artefact is a report about it, and it is
+why `outputs:` needs no notion of a repository path: an artefact is cleared
+before every run, and clearing a file of the project is not something a role
+should be able to ask for.
+
+Two things `init` cannot do, and says so rather than pretending otherwise. It
+cannot build the Dockerfile it proposes — there is no Docker inside the sandbox —
+so the file is a proposal carrying the build command in its opening comment.
+And it refuses to write one at all for a project that does not belong in a
+container: a desktop or mobile application, a toolchain absent on Linux, anything
+wanting the host kernel or a display. A Dockerfile that cannot work is worse than
+none, because somebody will try to build it.
+
+Nothing in smate reads `smate.Dockerfile` on its own: `image:` in `.smate.yml`
+still takes a name from the image library or a docker reference. Building it and
+deciding what to do with it is yours, after `apply`.
 
 `outputs` is a list, and a run has produced a result only when every one of them
 is written and not empty — half a plan is not something the next role should be
